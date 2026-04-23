@@ -18,6 +18,7 @@ SEARCH_TERMS = {
 def fetch_rss(query: str, hours: int = 24) -> list[dict]:
     url = f"https://news.google.com/rss/search?q={query}&hl=th&gl=TH&ceid=TH:th"
     feed = feedparser.parse(url)
+    print(f"[DEBUG] query={query} entries={len(feed.entries)} status={getattr(feed, 'status', 'N/A')}")
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     results = []
     for entry in feed.entries:
@@ -69,6 +70,7 @@ def main():
             all_articles[label] = fetch_rss(query, hours=24)
 
         total = sum(len(v) for v in all_articles.values())
+        print(f"[DEBUG] total articles found: {total}")
         if total == 0:
             send_plain("⭐ Celeb Watch — วันนี้หลิงออมเงียบมากครับ ไม่มีอะไรอัพเดท")
             return
