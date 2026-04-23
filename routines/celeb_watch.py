@@ -1,12 +1,17 @@
+print("celeb_watch starting...")
+
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import requests
-from datetime import datetime, timedelta, timezone
-
-from shared.claude_client import ask
-from shared.telegram import send_plain, send_error
+try:
+    import requests
+    from datetime import datetime, timedelta, timezone
+    from shared.claude_client import ask
+    from shared.telegram import send_plain, send_error
+except Exception as e:
+    print(f"Import error: {e}")
+    raise
 
 NEWSAPI_KEY = os.environ["NEWSAPI_KEY"]
 
@@ -29,9 +34,7 @@ def fetch_news(query: str, hours: int = 24) -> list[dict]:
     }
     resp = requests.get(url, params=params, timeout=15)
     resp.raise_for_status()
-    articles = resp.json().get("articles", [])
-    print(f"[DEBUG] query={query!r} articles={len(articles)}")
-    return articles
+    return resp.json().get("articles", [])
 
 
 def build_prompt(all_articles: dict[str, list[dict]]) -> str:
@@ -66,7 +69,6 @@ def main():
             all_articles[label] = fetch_news(query, hours=24)
 
         total = sum(len(v) for v in all_articles.values())
-        print(f"[DEBUG] total articles found: {total}")
         if total == 0:
             send_plain("⭐ Celeb Watch — วันนี้หลิงออมเงียบมากครับ ไม่มีอะไรอัพเดท")
             return
@@ -76,6 +78,7 @@ def main():
 
         send_plain(f"⭐ Celeb Watch — {datetime.now().strftime('%d/%m/%Y')}\n\n{summary.strip()}")
     except Exception as e:
+        print(f"Runtime error: {e}")
         send_error("celeb_watch", e)
         raise
 
