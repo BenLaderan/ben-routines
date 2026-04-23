@@ -2,14 +2,14 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import requests
+import feedparser
 import yfinance as yf
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
+from urllib.parse import quote_plus
 
 from shared.claude_client import ask
 from shared.telegram import send_plain, send_error
-
-NEWSAPI_KEY = os.environ["NEWSAPI_KEY"]
 
 STOCKS = ["AAV.BK", "GULF.BK", "BGRIM.BK"]
 INDICES = ["^N225", "^HSI", "^STI", "^SET.BK"]
@@ -37,20 +37,24 @@ def fetch_prices(tickers: list[str]) -> dict:
 
 
 def fetch_news(query: str, hours: int = 12) -> list[dict]:
-    from_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    url = "https://newsapi.org/v2/everything"
-    params = {
-        "q": query,
-        "from": from_time,
-        "sortBy": "publishedAt",
-        "language": "en",
-        "pageSize": 10,
-        "apiKey": NEWSAPI_KEY,
-    }
-    resp = requests.get(url, params=params, timeout=15)
-    resp.raise_for_status()
-    data = resp.json()
-    return data.get("articles", [])
+    url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en&gl=US&ceid=US:en"
+    feed = feedparser.parse(url)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    results = []
+    for entry in feed.entries:
+        try:
+            pub = parsedate_to_datetime(entry.published)
+            if pub.tzinfo is None:
+                pub = pub.replace(tzinfo=timezone.utc)
+            if pub < cutoff:
+                continue
+        except Exception:
+            continue
+        results.append({
+            "title": entry.get("title", ""),
+            "description": entry.get("summary", ""),
+        })
+    return results
 
 
 def format_price_block(prices: dict) -> str:

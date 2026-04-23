@@ -53,7 +53,6 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
 
   celeb_watch:
     name: Celeb Watch (20:00 TH)
@@ -92,7 +91,6 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
 
   trend_update:
     name: Trend Update (14:00 TH Wed & Sun)
@@ -112,4 +110,3 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}

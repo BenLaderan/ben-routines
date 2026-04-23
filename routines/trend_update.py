@@ -2,13 +2,14 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import requests
+import feedparser
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
+from urllib.parse import quote_plus
 
 from shared.claude_client import ask
 from shared.telegram import send_plain, send_error
 
-NEWSAPI_KEY = os.environ["NEWSAPI_KEY"]
 QUERIES = [
     "trending social media TikTok Thailand",
     "viral trend Thailand",
@@ -16,18 +17,24 @@ QUERIES = [
 
 
 def fetch_news(query: str, hours: int = 48) -> list[dict]:
-    from_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    url = "https://newsapi.org/v2/everything"
-    params = {
-        "q": query,
-        "from": from_time,
-        "sortBy": "publishedAt",
-        "pageSize": 10,
-        "apiKey": NEWSAPI_KEY,
-    }
-    resp = requests.get(url, params=params, timeout=15)
-    resp.raise_for_status()
-    return resp.json().get("articles", [])
+    url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en&gl=US&ceid=US:en"
+    feed = feedparser.parse(url)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    results = []
+    for entry in feed.entries:
+        try:
+            pub = parsedate_to_datetime(entry.published)
+            if pub.tzinfo is None:
+                pub = pub.replace(tzinfo=timezone.utc)
+            if pub < cutoff:
+                continue
+        except Exception:
+            continue
+        results.append({
+            "title": entry.get("title", ""),
+            "description": entry.get("summary", ""),
+        })
+    return results
 
 
 def build_prompt(articles: list[dict]) -> str:
