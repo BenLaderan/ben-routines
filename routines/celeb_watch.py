@@ -70,7 +70,8 @@ def main():
 
         total = sum(len(v) for v in all_articles.values())
         if total == 0:
-            return  # no news — exit silently
+            send_plain("⭐ Celeb Watch — วันนี้หลิงออมเงียบมากครับ ไม่มีอะไรอัพเดท")
+            return
 
         prompt = build_prompt(all_articles)
         summary = ask(prompt)
