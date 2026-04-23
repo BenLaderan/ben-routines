@@ -8,13 +8,20 @@ on:
     - cron: "0 13 * * *"  # celeb_watch    — 20:00 TH
     - cron: "0 16 * * *"  # night_shift    — 23:00 TH
     - cron: "0 7 * * 3,0" # trend_update   — 14:00 TH Wed & Sun
-  workflow_dispatch: {}   # allow manual trigger
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run (leave empty to run all)'
+        required: false
+        default: 'all'
 
 jobs:
   daily_intro:
     name: Daily Intro (07:00 TH)
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 0 * * *'
+    if: |
+      github.event.schedule == '0 0 * * *' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == 'daily_intro'))
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
@@ -31,7 +38,9 @@ jobs:
   morning_news:
     name: Morning News (09:00 TH)
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 2 * * *'
+    if: |
+      github.event.schedule == '0 2 * * *' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == 'morning_news'))
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
@@ -49,7 +58,9 @@ jobs:
   celeb_watch:
     name: Celeb Watch (20:00 TH)
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 13 * * *'
+    if: |
+      github.event.schedule == '0 13 * * *' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == 'celeb_watch'))
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
@@ -67,7 +78,9 @@ jobs:
   night_shift:
     name: Night Shift (23:00 TH)
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 16 * * *'
+    if: |
+      github.event.schedule == '0 16 * * *' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == 'night_shift'))
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
@@ -85,7 +98,9 @@ jobs:
   trend_update:
     name: Trend Update (14:00 TH Wed & Sun)
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 7 * * 3,0'
+    if: |
+      github.event.schedule == '0 7 * * 3,0' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == 'trend_update'))
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
