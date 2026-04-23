@@ -1,0 +1,96 @@
+name: Daily Routines
+
+on:
+  schedule:
+    # All times UTC (Thailand = UTC+7, so subtract 7 hours)
+    - cron: "0 0 * * *"   # daily_intro    — 07:00 TH
+    - cron: "0 2 * * *"   # morning_news   — 09:00 TH
+    - cron: "0 13 * * *"  # celeb_watch    — 20:00 TH
+    - cron: "0 16 * * *"  # night_shift    — 23:00 TH
+    - cron: "0 7 * * 3,0" # trend_update   — 14:00 TH Wed & Sun
+  workflow_dispatch: {}   # allow manual trigger
+
+jobs:
+  daily_intro:
+    name: Daily Intro (07:00 TH)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 0 * * *'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python routines/daily_intro.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+  morning_news:
+    name: Morning News (09:00 TH)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 2 * * *'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python routines/morning_news.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+
+  celeb_watch:
+    name: Celeb Watch (20:00 TH)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 13 * * *'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python routines/celeb_watch.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+
+  night_shift:
+    name: Night Shift (23:00 TH)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 16 * * *'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python routines/night_shift.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+
+  trend_update:
+    name: Trend Update (14:00 TH Wed & Sun)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 7 * * 3,0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python routines/trend_update.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
