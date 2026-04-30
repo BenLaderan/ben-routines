@@ -11,7 +11,7 @@ from urllib.parse import quote_plus
 from shared.claude_client import ask
 from shared.telegram import send_plain, send_error
 
-STOCKS = ["VOO", "SOFI", "DOCN", "ASTS"]
+STOCKS = ["NVDA", "AVGO", "DOCN", "MU", "CEG", "FN", "JBL", "ANET", "VST", "VRT"]
 INDICES = ["^GSPC", "^DJI", "^IXIC"]
 NEWS_QUERY = "Wall Street US stock market Europe economy"
 
@@ -88,7 +88,7 @@ def build_prompt(stock_block: str, index_block: str, articles: list[dict]) -> st
 {news_text if news_text else "ไม่มีข่าว"}
 
 สรุปเป็นภาษาไทยทั้งหมด เขียนเหมือนเพื่อนเล่าให้ฟัง ไม่ต้องเป็นทางการ
-ตัวเลขสำคัญและชื่อหุ้นให้ใส่ * ครอบทั้งสองข้าง เช่น *SOFI* หรือ *-1.2%* (Telegram bold)
+ตัวเลขสำคัญและชื่อหุ้นให้ใส่ * ครอบทั้งสองข้าง เช่น *AVGO* หรือ *-1.2%* (Telegram bold)
 โครงสร้าง:
 
 📰 ข่าวใหญ่คืนนี้ (3-5 ข่าว)
@@ -104,7 +104,7 @@ def build_prompt(stock_block: str, index_block: str, articles: list[dict]) -> st
 🌏 ตลาดเอเชียพรุ่งนี้จะเป็นยังไง
 วิเคราะห์ทิศทางแบบตรงๆ 2-3 ประโยค
 
-⚡ ผลต่อพอร์ตเบน (*VOO*, *SOFI*, *DOCN*, *ASTS*)
+⚡ ผลต่อพอร์ตเบน (*AVGO*, *NVDA*, *DOCN*, *CEG*, *FN*, *MU*, *JBL*, *ANET*, *VST*, *VRT*)
 วิเคราะห์แต่ละตัวสั้นๆ แบบตรงไปตรงมา
 
 ⚠️ คืนนี้ต้องระวัง / มีโอกาสอะไร
