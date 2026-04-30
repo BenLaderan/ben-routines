@@ -11,7 +11,7 @@ from urllib.parse import quote_plus
 from shared.claude_client import ask
 from shared.telegram import send_plain, send_error
 
-STOCKS = ["AAV.BK", "GULF.BK", "BGRIM.BK"]
+STOCKS = ["000660.KR", "005930.KR", "TSMC.TW"]
 INDICES = ["^N225", "^HSI", "^STI", "^SET.BK"]
 NEWS_QUERY = "Asia stock market economy"
 
@@ -98,7 +98,7 @@ def build_prompt(stock_block: str, index_block: str, articles: list[dict]) -> st
 📊 ตลาดเอเชียเช้านี้
 แสดงราคาและ % ของแต่ละดัชนีและหุ้น ตัวเลขทำ bold
 
-⚡ ผลต่อพอร์ตเบน (*AAV*, *GULF*, *BGRIM*)
+⚡ ผลต่อหุ้น (*000660*, *005930*, *TSMC*)
 วิเคราะห์แต่ละตัวสั้นๆ แบบตรงไปตรงมา
 
 ⚠️ วันนี้ต้องระวัง / มีโอกาสอะไร
