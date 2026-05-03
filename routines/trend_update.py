@@ -10,80 +10,164 @@ from urllib.parse import quote_plus
 from shared.claude_client import ask
 from shared.telegram import send_plain, send_error
 
+
+# 🔥 แยก query เป็น “signal จริง”
 QUERIES = [
-    "trending social media TikTok Thailand",
-    "viral trend Thailand",
+    # 🇹🇭 Thailand
+    "Thailand consumer behavior trend ecommerce lifestyle",
+    "Thailand food trend shopping trend Gen Z Thailand",
+    "Thailand technology trend AI app social media usage",
+
+    # 🌏 Global
+    "global consumer trend ecommerce TikTok trend Gen Z",
+    "consumer behavior shift digital trend 2025",
+    "viral product trend social media global",
+]
+
+KEYWORDS = [
+    "trend", "consumer", "shopping", "ecommerce",
+    "AI", "app", "social media", "lifestyle",
+    "food", "Gen Z", "behavior", "digital"
+]
+
+STRONG_SIGNALS = [
+    "ยอดขาย", "growth", "เพิ่มขึ้น", "surge",
+    "demand", "นิยม", "ฮิต", "viral", "ล้านวิว"
 ]
 
 
-def fetch_news(query: str, hours: int = 48) -> list[dict]:
-    url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en&gl=US&ceid=US:en"
-    feed = feedparser.parse(url)
+# ------------------ FETCH ------------------
+
+def fetch_news_multi(queries, hours=48):
+    all_articles = []
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-    results = []
-    for entry in feed.entries:
-        try:
-            pub = parsedate_to_datetime(entry.published)
-            if pub.tzinfo is None:
-                pub = pub.replace(tzinfo=timezone.utc)
-            if pub < cutoff:
+
+    for q in queries:
+        url = f"https://news.google.com/rss/search?q={quote_plus(q)}&hl=en&gl=US&ceid=US:en"
+        feed = feedparser.parse(url)
+
+        for e in feed.entries:
+            try:
+                pub = parsedate_to_datetime(e.published)
+                if pub.tzinfo is None:
+                    pub = pub.replace(tzinfo=timezone.utc)
+                if pub < cutoff:
+                    continue
+            except:
                 continue
-        except Exception:
+
+            title = e.get("title", "")
+            desc = e.get("summary", "")[:150]
+
+            all_articles.append({
+                "title": title,
+                "desc": desc
+            })
+
+    return all_articles
+
+
+# ------------------ FILTER ------------------
+
+def filter_articles(articles):
+    seen = set()
+    filtered = []
+
+    for a in articles:
+        text = (a["title"] + " " + a["desc"]).lower()
+        key = a["title"][:80]
+
+        if key in seen:
             continue
-        results.append({
-            "title": entry.get("title", ""),
-            "description": entry.get("summary", ""),
-        })
-    return results
+
+        if any(k in text for k in KEYWORDS):
+            seen.add(key)
+            filtered.append(a)
+
+    return filtered[:12]  # เพิ่ม data ให้ Claude เห็น pattern
 
 
-def build_prompt(articles: list[dict]) -> str:
-    if not articles:
-        news_text = "ไม่พบข่าวในช่วงนี้"
-    else:
-        news_text = "\n".join(
-            f"- {a['title']} | {a.get('description', '')}" for a in articles[:15]
-        )
+# ------------------ SCORING ------------------
+
+def score_signal(article):
+    text = (article["title"] + " " + article["desc"]).lower()
+    score = 0
+
+    for k in STRONG_SIGNALS:
+        if k in text:
+            score += 1
+
+    return score
+
+
+def sort_by_signal(articles):
+    return sorted(articles, key=score_signal, reverse=True)
+
+
+# ------------------ PROMPT ------------------
+
+def build_prompt(articles):
+    news_text = "\n".join(
+        f"- {a['title']} | {a['desc']}" for a in articles
+    )
+
     return f"""
-คุณคือนักวิเคราะห์ trend และพฤติกรรมผู้บริโภคในไทย
+คุณไม่ใช่คนสรุปข่าว แต่เป็น “trend analyst”
 
-ข่าวและเนื้อหาที่พบ:
+ข้อมูล:
 {news_text}
 
-วิเคราะห์และสรุปเป็นภาษาไทย โดยต้องมีครบ 4 ส่วนนี้เสมอ:
+วิเคราะห์ให้ลึกและ “เอาไปใช้ได้จริง”
 
-🔥 (1) What's happening
-วันนี้คนพูดถึงอะไร — สรุป trend หลัก 2-3 เรื่อง
+ตอบเป็นภาษาไทย:
 
-🧠 (2) Why it matters
-สะท้อน behavior หรือ pain point อะไรของคนไทยในตอนนี้
+🔥 (1) Key Trends (3 เรื่อง)
+- สรุป trend เป็น “pattern” ไม่ใช่ข่าว
+- เช่น: คนเริ่มซื้อของ X เพราะ Y
 
-📡 (3) Signal type
-ระบุแต่ละเรื่องว่าเป็น Mainstream (กระแสหลัก) หรือ Emerging (กำลังโต)
+🧠 (2) Behavior Insight
+- คนกำลังเปลี่ยนพฤติกรรมยังไง
+- pain point หรือ desire คืออะไร
 
-💼 (4) Opportunity
-แบรนด์หรือผู้สร้างคอนเทนต์เอาไปทำอะไรได้บ้าง (1-3 ข้อ)
+📡 (3) Signal Strength
+ให้แต่ละ trend:
+- Mainstream (เริ่มใหญ่)
+- Emerging (กำลังมา)
+- Noise (แค่ไวรัล)
 
-ไม่ต้องมีคำนำ ตอบตรงๆ แต่ละส่วนไม่เกิน 4 บรรทัด
+💼 (4) Monetization
+- ทำเงินยังไง (สำคัญมาก)
+- ธุรกิจ / content / product
+
+🌏 (5) Local vs Global
+- อะไรเกิดในไทย
+- อะไรเป็น trend โลก
+
+❗ ห้ามเล่าข่าว
+❗ ต้องสรุปเป็น insight เท่านั้น
 """
 
 
+# ------------------ MAIN ------------------
+
 def main():
     try:
-        all_articles: list[dict] = []
-        seen_titles: set[str] = set()
+        raw = fetch_news_multi(QUERIES)
+        filtered = filter_articles(raw)
+        sorted_articles = sort_by_signal(filtered)
 
-        for query in QUERIES:
-            for article in fetch_news(query, hours=48):
-                title = article.get("title", "")
-                if title and title not in seen_titles:
-                    seen_titles.add(title)
-                    all_articles.append(article)
+        if not sorted_articles:
+            send_plain("📈 Trend Update — วันนี้ยังไม่มี signal ชัด")
+            return
 
-        prompt = build_prompt(all_articles)
+        prompt = build_prompt(sorted_articles)
         summary = ask(prompt)
 
-        send_plain(f"📈 Trend Update — {datetime.now().strftime('%d/%m/%Y')}\n\n{summary.strip()}")
+        send_plain(
+            f"📈 Trend Intelligence — {datetime.now().strftime('%d/%m/%Y')}\n\n"
+            f"{summary.strip()}"
+        )
+
     except Exception as e:
         send_error("trend_update", e)
         raise
