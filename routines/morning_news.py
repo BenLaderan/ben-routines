@@ -3,7 +3,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import feedparser
-import yfinance as yf
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
@@ -11,50 +10,36 @@ from urllib.parse import quote_plus
 from shared.claude_client import ask
 from shared.telegram import send_plain, send_error
 
-STOCKS = ["000660.KR", "005930.KR", "TSMC.TW"]
-INDICES = ["^N225", "^HSI", "^STI", "^SET.BK"]
-
+# 🔥 แยก query ตาม “ฟีลหนังสือพิมพ์”
 QUERIES = [
-    "AI GPU demand NVIDIA AMD TSMC",
-    "data center cloud capex hyperscaler",
-    "AI electricity demand nuclear energy grid",
-    "Samsung SK Hynix TSMC earnings guidance"
+    # 🇹🇭 ไทย
+    "Thailand economy inflation tourism digital economy",
+    "Thailand technology startup ecommerce AI Thailand",
+    "Thailand consumer trend shopping behavior Gen Z Thailand",
+    "Thailand entertainment celebrity news trend Thailand",
+
+    # 🌏 เอเชีย
+    "Asia economy China Japan Korea growth inflation",
+    "Asia technology AI semiconductor China Japan Korea",
+    "Asia consumer trend ecommerce China Southeast Asia",
+    "Asia entertainment trend Kpop China media industry"
 ]
 
 KEYWORDS = [
-    "capex", "guidance", "demand", "data center",
-    "AI", "GPU", "cloud", "energy", "electricity",
-    "nuclear", "earnings"
-]
-
-CRITICAL_KEYWORDS = [
-    "capex cut", "demand slowdown", "guidance lowered",
-    "data center delay"
+    "economy", "inflation", "tourism", "technology", "AI",
+    "startup", "consumer", "trend", "ecommerce",
+    "entertainment", "media", "policy", "รัฐบาล"
 ]
 
 
-def fetch_prices(tickers):
-    results = {}
-    for symbol in tickers:
-        try:
-            t = yf.Ticker(symbol)
-            hist = t.history(period="2d")
-            if len(hist) >= 2:
-                prev = hist["Close"].iloc[-2]
-                last = hist["Close"].iloc[-1]
-                pct = ((last - prev) / prev) * 100
-                results[symbol] = {"price": round(last, 2), "pct": round(pct, 2)}
-        except:
-            results[symbol] = {"price": "N/A", "pct": None}
-    return results
-
+# ------------------ FETCH ------------------
 
 def fetch_news_multi(queries, hours=12):
     all_articles = []
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
 
     for q in queries:
-        url = f"https://news.google.com/rss/search?q={quote_plus(q)}&hl=en&gl=US&ceid=US:en"
+        url = f"https://news.google.com/rss/search?q={quote_plus(q)}&hl=th&gl=TH&ceid=TH:th"
         feed = feedparser.parse(url)
 
         for e in feed.entries:
@@ -68,7 +53,7 @@ def fetch_news_multi(queries, hours=12):
                 continue
 
             title = e.get("title", "")
-            desc = e.get("summary", "")[:150]
+            desc = e.get("summary", "")[:120]
 
             all_articles.append({
                 "title": title,
@@ -77,6 +62,8 @@ def fetch_news_multi(queries, hours=12):
 
     return all_articles
 
+
+# ------------------ FILTER ------------------
 
 def filter_articles(articles):
     seen = set()
@@ -90,17 +77,10 @@ def filter_articles(articles):
                 seen.add(a["title"])
                 filtered.append(a)
 
-    return filtered[:6]
+    return filtered[:10]  # ให้ข่าวเยอะขึ้นหน่อยสำหรับ morning
 
 
-def detect_critical(articles):
-    alerts = []
-    for a in articles:
-        text = (a["title"] + " " + a["desc"]).lower()
-        if any(k in text for k in CRITICAL_KEYWORDS):
-            alerts.append(a["title"])
-    return alerts
-
+# ------------------ PROMPT ------------------
 
 def build_prompt(news):
     news_text = "\n".join(
@@ -108,43 +88,49 @@ def build_prompt(news):
     )
 
     return f"""
-คุณคือ analyst ที่โฟกัส “signal ไม่ใช่ข่าว”
+คุณคือคนอ่านข่าวเก่ง ที่เล่าเหมือน “สรุปหนังสือพิมพ์เช้า”
 
 ข่าว:
 {news_text}
 
-ตอบสั้น กระชับ:
+สรุปเป็นภาษาไทยทั้งหมด
+โทนเหมือนอ่าน ไทยรัฐ + เดลินิวส์ + กรุงเทพธุรกิจ
+แต่มีมุมมอง “คนมองเทรนด์”
 
-🧠 AI Cycle
-ยังแข็งแรง / เริ่มชะลอ / มีความเสี่ยง
+โครงสร้าง:
 
-🔄 Money Flow
-เงินไหลไป sector ไหน (chip / infra / energy)
+📰 ข่าวเด่นเช้านี้ (5-7 ข่าว)
+เล่าแบบ:
+- เกิดอะไร
+- ทำไมคนถึงสนใจ
+- มันสะท้อนอะไรในสังคมหรือเศรษฐกิจ
 
-⚡ Key Signal
-- bullet 2-4 ข้อ
+🌏 เทรนด์ที่น่าจับตา (2-3 ข้อ)
+เช่น:
+- คนกำลังใช้เงินกับอะไร
+- เทคโนโลยีอะไรเริ่มมา
+- พฤติกรรมคนเปลี่ยนยังไง
 
-🎯 Action
-ควร: ถือ / เพิ่ม / ระวัง
+💡 มุมคิด (สำคัญ)
+สรุป 2-3 บรรทัดว่า:
+“ถ้าคิดแบบนักลงทุน / คนทำธุรกิจ ควรเห็นอะไรจากข่าววันนี้”
 """
 
 
+# ------------------ MAIN ------------------
+
 def main():
     try:
-        stock_prices = fetch_prices(STOCKS)
-        index_prices = fetch_prices(INDICES)
-
         raw_news = fetch_news_multi(QUERIES)
         news = filter_articles(raw_news)
-
-        alerts = detect_critical(news)
-        if alerts:
-            send_plain("🚨 CRITICAL SIGNAL:\n" + "\n".join(alerts[:3]))
 
         prompt = build_prompt(news)
         summary = ask(prompt)
 
-        send_plain(f"🌅 Morning Signal — {datetime.now().strftime('%d/%m %H:%M')}\n\n{summary.strip()}")
+        send_plain(
+            f"🌅 Morning Brief — {datetime.now().strftime('%d/%m %H:%M')}\n\n"
+            f"{summary.strip()}"
+        )
 
     except Exception as e:
         send_error("morning_news", e)
