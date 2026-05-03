@@ -117,7 +117,7 @@ AI_SCORE: X/10
 (ให้เหตุผล 1-2 บรรทัด)
 
 🔄 Rotation
-เงินกำลังไหลไป sector ไหน (chip / infra / energy)
+เงินกำลังไหลไป sector ไหน (chip / infra / energy / อื่นๆ ที่โดดเด่น)
 
 ⚡ Energy Theme
 ENERGY_SCORE: X/10
@@ -130,6 +130,7 @@ NVDA, AVGO, MU, ANET, VRT, VST, FN, JBL, CEG, CW, BWXT, CCJ, NXE, LEU
 - chip:
 - infra:
 - energy:
+- นอกเหนือจาก 3 กลุ่มด้านบนและโดดเด่นที่สุด
 
 🎯 สรุป 1 บรรทัด (action ชัดๆ)
 """
