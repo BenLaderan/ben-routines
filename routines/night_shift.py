@@ -104,7 +104,7 @@ def build_prompt(stock_block: str, index_block: str, articles: list[dict]) -> st
 🌏 ตลาดเอเชียพรุ่งนี้จะเป็นยังไง
 วิเคราะห์ทิศทางแบบตรงๆ 2-3 ประโยค
 
-⚡ ผลต่อพอร์ตเบน (*AVGO*, *NVDA*, *DOCN*, *CEG*, *FN*, *MU*, *JBL*, *ANET*, *VST*, *VRT*)
+⚡ ผลต่อพอร์ตเบน (*AVGO*, *NVDA*, *MRSH*, *CEG*, *FN*, *MU*, *JBL*, *ANET*, *VST*, *VRT*)
 วิเคราะห์แต่ละตัวสั้นๆ แบบตรงไปตรงมา
 
 ⚠️ คืนนี้ต้องระวัง / มีโอกาสอะไร
