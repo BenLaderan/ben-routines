@@ -10,25 +10,25 @@ from urllib.parse import quote_plus
 from shared.claude_client import ask
 from shared.telegram import send_plain, send_error
 
-# 🔥 แยก query ตาม “ฟีลหนังสือพิมพ์”
+
+# ✅ query ใหม่ (กว้าง + ไทย + อังกฤษ)
 QUERIES = [
     # 🇹🇭 ไทย
-    "Thailand economy inflation tourism digital economy",
-    "Thailand technology startup ecommerce AI Thailand",
-    "Thailand consumer trend shopping behavior Gen Z Thailand",
-    "Thailand entertainment celebrity news trend Thailand",
+    "ข่าวเศรษฐกิจ ไทย",
+    "ข่าวเทคโนโลยี ไทย",
+    "ข่าวธุรกิจ ไทย",
+    "ข่าวบันเทิง ไทย",
 
-    # 🌏 เอเชีย
-    "Asia economy China Japan Korea growth inflation",
-    "Asia technology AI semiconductor China Japan Korea",
-    "Asia consumer trend ecommerce China Southeast Asia",
-    "Asia entertainment trend Kpop China media industry"
+    # 🌏 เอเชีย + global
+    "Asia economy news",
+    "Asia technology news",
+    "consumer trend Asia",
 ]
 
-KEYWORDS = [
-    "economy", "inflation", "tourism", "technology", "AI",
-    "startup", "consumer", "trend", "ecommerce",
-    "entertainment", "media", "policy", "รัฐบาล"
+# ✅ fallback กันข่าวหาย
+FALLBACK_QUERIES = [
+    "Thailand news",
+    "world news economy technology",
 ]
 
 
@@ -53,7 +53,7 @@ def fetch_news_multi(queries, hours=12):
                 continue
 
             title = e.get("title", "")
-            desc = e.get("summary", "")[:120]
+            desc = e.get("summary", "")[:150]
 
             all_articles.append({
                 "title": title,
@@ -63,57 +63,52 @@ def fetch_news_multi(queries, hours=12):
     return all_articles
 
 
-# ------------------ FILTER ------------------
+# ------------------ FILTER (เบามาก) ------------------
 
 def filter_articles(articles):
     seen = set()
     filtered = []
 
     for a in articles:
-        text = (a["title"] + " " + a["desc"]).lower()
+        key = a["title"][:80]
 
-        if any(k in text for k in KEYWORDS):
-            if a["title"] not in seen:
-                seen.add(a["title"])
-                filtered.append(a)
+        if key in seen:
+            continue
 
-    return filtered[:10]  # ให้ข่าวเยอะขึ้นหน่อยสำหรับ morning
+        # ✅ เอาเกือบหมด กันข่าวหาย
+        seen.add(key)
+        filtered.append(a)
+
+    return filtered[:12]
 
 
 # ------------------ PROMPT ------------------
 
-def build_prompt(news):
+def build_prompt(articles):
     news_text = "\n".join(
-        f"- {a['title']} | {a['desc']}" for a in news
+        f"- {a['title']} | {a['desc']}" for a in articles
     )
 
     return f"""
-คุณคือคนอ่านข่าวเก่ง ที่เล่าเหมือน “สรุปหนังสือพิมพ์เช้า”
+คุณคือคนอ่านข่าวเช้าเก่งมาก
 
 ข่าว:
 {news_text}
 
-สรุปเป็นภาษาไทยทั้งหมด
-โทนเหมือนอ่าน ไทยรัฐ + เดลินิวส์ + กรุงเทพธุรกิจ
-แต่มีมุมมอง “คนมองเทรนด์”
+สรุปเป็นภาษาไทย ฟีล “หนังสือพิมพ์ + เพื่อนเล่า”
 
-โครงสร้าง:
-
-📰 ข่าวเด่นเช้านี้ (5-7 ข่าว)
-เล่าแบบ:
+📰 ข่าวเด่น (5 ข่าว)
 - เกิดอะไร
-- ทำไมคนถึงสนใจ
-- มันสะท้อนอะไรในสังคมหรือเศรษฐกิจ
+- ทำไมคนสนใจ
 
-🌏 เทรนด์ที่น่าจับตา (2-3 ข้อ)
-เช่น:
-- คนกำลังใช้เงินกับอะไร
-- เทคโนโลยีอะไรเริ่มมา
-- พฤติกรรมคนเปลี่ยนยังไง
+🌏 เทรนด์
+- คนกำลังสนใจอะไร
+- พฤติกรรมเปลี่ยนยังไง
 
-💡 มุมคิด (สำคัญ)
-สรุป 2-3 บรรทัดว่า:
-“ถ้าคิดแบบนักลงทุน / คนทำธุรกิจ ควรเห็นอะไรจากข่าววันนี้”
+💡 มุมคิด
+- ถ้าเป็นนักลงทุน/เจ้าของธุรกิจ ควรเห็นอะไร
+
+❗ ห้ามบอกว่าไม่มีข่าว
 """
 
 
@@ -121,8 +116,21 @@ def build_prompt(news):
 
 def main():
     try:
-        raw_news = fetch_news_multi(QUERIES)
-        news = filter_articles(raw_news)
+        raw = fetch_news_multi(QUERIES)
+        news = filter_articles(raw)
+
+        print(f"[DEBUG] RAW: {len(raw)} | FILTERED: {len(news)}")
+
+        # ✅ fallback ถ้าข่าวน้อย
+        if len(news) < 5:
+            print("[DEBUG] Using fallback...")
+            raw = fetch_news_multi(FALLBACK_QUERIES)
+            news = filter_articles(raw)
+
+        # ✅ กัน empty
+        if not news:
+            send_plain("🌅 Morning Brief — วันนี้ข่าวน้อย แต่ตลาดยังปกติ ไม่มี event ใหญ่")
+            return
 
         prompt = build_prompt(news)
         summary = ask(prompt)
