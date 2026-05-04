@@ -3,7 +3,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import feedparser
-import re
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
@@ -11,34 +10,32 @@ from urllib.parse import quote_plus
 from shared.claude_client import ask
 from shared.telegram import send_plain, send_error
 
-# ✅ เพิ่ม nuclear เข้าไป
-STOCKS = [
-    "NVDA", "AVGO", "MU", "ANET", "VRT", "VST",
-    "FN", "JBL", "CEG",
-    "CW", "BWXT", "CCJ", "NXE", "LEU"
-]
 
+# ✅ query ใหม่ (balanced: ไม่แคบเกิน / ไม่กว้างเกิน)
 QUERIES = [
-    "NVIDIA earnings guidance AI demand",
-    "hyperscaler capex Microsoft Amazon Google cloud",
-    "data center electricity nuclear power AI",
-    "uranium nuclear energy demand AI data center",
-    "AVGO MU ANET VRT earnings outlook"
+    "AI data center Nvidia Microsoft Google",
+    "cloud computing AI demand data center",
+    "semiconductor chip industry AI",
+    "electricity demand data center power",
 ]
 
+# ✅ fallback กันข่าวหาย
+FALLBACK_QUERIES = [
+    "AI technology news",
+    "energy market news",
+]
+
+# ✅ keyword ลดความ strict
 KEYWORDS = [
-    "capex", "guidance", "demand", "data center",
-    "AI", "GPU", "cloud", "energy", "electricity",
-    "nuclear", "uranium", "power", "earnings"
-]
-
-CRITICAL_KEYWORDS = [
-    "capex cut", "demand slowdown",
-    "guidance lowered", "data center delay"
+    "ai", "data center", "cloud", "gpu",
+    "chip", "semiconductor",
+    "energy", "electricity", "power",
+    "demand", "growth", "investment",
+    "capacity", "infrastructure"
 ]
 
 
-# ------------------ NEWS ------------------
+# ------------------ FETCH ------------------
 
 def fetch_news_multi(queries, hours=12):
     all_articles = []
@@ -69,74 +66,64 @@ def fetch_news_multi(queries, hours=12):
     return all_articles
 
 
+# ------------------ FILTER ------------------
+
 def filter_articles(articles):
     seen = set()
     filtered = []
 
     for a in articles:
         text = (a["title"] + " " + a["desc"]).lower()
+        key = a["title"][:80]
 
-        if any(k in text for k in KEYWORDS):
-            if a["title"] not in seen:
-                seen.add(a["title"])
-                filtered.append(a)
+        if key in seen:
+            continue
 
-    return filtered[:6]
+        # ✅ ลด strict → กันข่าวหาย
+        if any(k in text for k in KEYWORDS) or len(text) > 60:
+            seen.add(key)
+            filtered.append(a)
 
-
-def detect_critical(articles):
-    alerts = []
-    for a in articles:
-        text = (a["title"] + " " + a["desc"]).lower()
-        if any(k in text for k in CRITICAL_KEYWORDS):
-            alerts.append(a["title"])
-    return alerts
+    return filtered[:8]  # ไม่เยอะเกิน → ประหยัด token
 
 
 # ------------------ PROMPT ------------------
 
-def build_prompt(news):
+def build_prompt(articles):
     news_text = "\n".join(
-        f"- {a['title']} | {a['desc']}" for a in news
+        f"- {a['title']} | {a['desc']}" for a in articles
     )
 
     return f"""
-คุณคือ analyst ที่โฟกัส AI + Energy theme
+คุณคือ analyst ที่โฟกัส AI + Energy
 
 ข่าว:
 {news_text}
 
-ให้วิเคราะห์และ "ให้คะแนน" โดยใช้ logic การลงทุนจริง
-
-ตอบตาม format นี้เท่านั้น:
+ตอบแบบ "signal เท่านั้น" (ไม่เล่าข่าว):
 
 🧠 AI Cycle
-สรุป: ยังไป / เริ่มชะลอ / เสี่ยง
-
-AI_SCORE: X/10
-(ให้เหตุผล 1-2 บรรทัด)
+- ยังไป / เริ่มชะลอ / เสี่ยง
+- AI_SCORE: X/10 (มีเหตุผลสั้นๆ)
 
 🔄 Rotation
-เงินกำลังไหลไป sector ไหน (chip / infra / energy / อื่นๆ ที่โดดเด่น)
+- เงินไหลไปไหน (chip / infra / energy)
 
 ⚡ Energy Theme
-ENERGY_SCORE: X/10
-(ให้เหตุผล 1-2 บรรทัด)
+- ENERGY_SCORE: X/10 (มีเหตุผลสั้นๆ)
 
-📊 Impact ต่อพอร์ต:
-NVDA, AVGO, MU, ANET, VRT, VST, FN, JBL, CEG, CW, BWXT, CCJ, NXE, LEU
-
-→ สรุปเป็นกลุ่ม:
+📊 Impact
 - chip:
 - infra:
 - energy:
-- นอกเหนือจาก 3 กลุ่มด้านบนและโดดเด่นที่สุด
 
-🎯 สรุป 1 บรรทัด (action ชัดๆ)
+🎯 Action (1 บรรทัด)
 """
 
 
 # ------------------ SCORE PARSER ------------------
+
+import re
 
 def extract_score(text, label):
     try:
@@ -153,17 +140,25 @@ def extract_score(text, label):
 
 def main():
     try:
-        raw_news = fetch_news_multi(QUERIES)
-        news = filter_articles(raw_news)
+        raw = fetch_news_multi(QUERIES)
+        news = filter_articles(raw)
 
-        alerts = detect_critical(news)
-        if alerts:
-            send_plain("🚨 NIGHT WARNING:\n" + "\n".join(alerts[:3]))
+        print(f"[DEBUG] RAW: {len(raw)} | FILTERED: {len(news)}")
+
+        # ✅ fallback ถ้าข่าวน้อย
+        if len(news) < 3:
+            print("[DEBUG] Using fallback queries...")
+            raw = fetch_news_multi(FALLBACK_QUERIES)
+            news = filter_articles(raw)
+
+        # ✅ guard กัน Claude ตอบมั่ว
+        if not news:
+            send_plain("🌙 Night Signal — ไม่มีข่าวสำคัญในรอบนี้")
+            return
 
         prompt = build_prompt(news)
         summary = ask(prompt)
 
-        # ✅ extract score (optional ใช้ต่อยอดได้)
         ai_score = extract_score(summary, "AI_SCORE")
         energy_score = extract_score(summary, "ENERGY_SCORE")
 
