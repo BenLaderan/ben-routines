@@ -107,7 +107,7 @@ def build_prompt(articles):
 - AI_SCORE: X/10 (มีเหตุผลสั้นๆ)
 
 🔄 Rotation
-- เงินไหลไปไหน (chip / infra / energy)
+- เงินไหลไปไหน (chip / infra / energy / อื่นๆ ที่โดดเด่น)
 
 ⚡ Energy Theme
 - ENERGY_SCORE: X/10 (มีเหตุผลสั้นๆ)
@@ -116,6 +116,7 @@ def build_prompt(articles):
 - chip:
 - infra:
 - energy:
+- อื่น ๆ ที่โดดเด่นขึ้นมานอกจาก 3 ตัวด้านบน
 
 🎯 Action (1 บรรทัด)
 """
