@@ -11,21 +11,20 @@ from shared.claude_client import ask
 from shared.telegram import send_plain, send_error
 
 
-# ✅ query ใหม่ (balanced: ไม่แคบเกิน / ไม่กว้างเกิน)
+# ------------------ CONFIG ------------------
+
 QUERIES = [
     "AI data center Nvidia Microsoft Google",
     "cloud computing AI demand data center",
-    "semiconductor chip industry AI",
-    "electricity demand data center power",
+    "semiconductor industry AI chip demand",
+    "electricity demand data center energy",
 ]
 
-# ✅ fallback กันข่าวหาย
 FALLBACK_QUERIES = [
     "AI technology news",
     "energy market news",
 ]
 
-# ✅ keyword ลดความ strict
 KEYWORDS = [
     "ai", "data center", "cloud", "gpu",
     "chip", "semiconductor",
@@ -33,6 +32,8 @@ KEYWORDS = [
     "demand", "growth", "investment",
     "capacity", "infrastructure"
 ]
+
+BAD_WORDS = ["celebrity", "movie", "sports"]
 
 
 # ------------------ FETCH ------------------
@@ -56,11 +57,13 @@ def fetch_news_multi(queries, hours=12):
                 continue
 
             title = e.get("title", "")
-            desc = e.get("summary", "")[:150]
+            desc = e.get("summary", "")[:120]
+            link = e.get("link", "")
 
             all_articles.append({
                 "title": title,
-                "desc": desc
+                "desc": desc,
+                "link": link
             })
 
     return all_articles
@@ -79,46 +82,66 @@ def filter_articles(articles):
         if key in seen:
             continue
 
-        # ✅ ลด strict → กันข่าวหาย
+        if any(b in text for b in BAD_WORDS):
+            continue
+
         if any(k in text for k in KEYWORDS) or len(text) > 60:
             seen.add(key)
             filtered.append(a)
 
-    return filtered[:8]  # ไม่เยอะเกิน → ประหยัด token
+    return filtered[:6]  # จำกัดให้สั้น
+
+
+# ------------------ FORMAT HEADLINES ------------------
+
+def format_headlines(articles):
+    lines = []
+
+    for a in articles:
+        title = a["title"]
+        link = a["link"]
+
+        lines.append(f"- {title}\n  🔗 {link}")
+
+    return "\n".join(lines)
 
 
 # ------------------ PROMPT ------------------
 
 def build_prompt(articles):
     news_text = "\n".join(
-        f"- {a['title']} | {a['desc']}" for a in articles
+        f"- {a['title']}" for a in articles
     )
 
     return f"""
-คุณคือ analyst ที่โฟกัส AI + Energy
+คุณคือ hedge fund analyst
 
 ข่าว:
 {news_text}
 
-ตอบแบบ "signal เท่านั้น" (ไม่เล่าข่าว):
+สรุปแบบ “สั้น + ใช้ตัดสินใจได้ทันที”
 
-🧠 AI Cycle
-- ยังไป / เริ่มชะลอ / เสี่ยง
-- AI_SCORE: X/10 (มีเหตุผลสั้นๆ)
+Format:
 
-🔄 Rotation
-- เงินไหลไปไหน (chip / infra / energy / อื่นๆ ที่โดดเด่น)
+📰 ข่าวสำคัญ (3-5 ข้อ)
+- headline → context สั้นๆ (เช่น เพิ่มลงทุน / ลดงบ / demand โต)
 
-⚡ Energy Theme
-- ENERGY_SCORE: X/10 (มีเหตุผลสั้นๆ)
+🧠 AI: X/10 → (ยังไป / ชะลอ / เสี่ยง) + เหตุผลสั้น
+⚡ Energy: X/10 → (แรง / กลาง / อ่อน) + เหตุผลสั้น
 
-📊 Impact
-- chip:
-- infra:
-- energy:
-- อื่น ๆ ที่โดดเด่นขึ้นมานอกจาก 3 ตัวด้านบน
+🔄 เงินไหล:
+1 บรรทัด
 
-🎯 Action (1 บรรทัด)
+📊 ผลต่อพอร์ต:
++ (เพิ่ม)
+= (ถือ)
+- (ลด)
+
+🎯 วันนี้:
+1 ประโยคสั่งการ
+
+❗ ห้ามยาว
+❗ ห้ามเล่าข่าวยาว
 """
 
 
@@ -146,30 +169,34 @@ def main():
 
         print(f"[DEBUG] RAW: {len(raw)} | FILTERED: {len(news)}")
 
-        # ✅ fallback ถ้าข่าวน้อย
+        # fallback ถ้าข่าวน้อย
         if len(news) < 3:
-            print("[DEBUG] Using fallback queries...")
+            print("[DEBUG] Using fallback...")
             raw = fetch_news_multi(FALLBACK_QUERIES)
             news = filter_articles(raw)
 
-        # ✅ guard กัน Claude ตอบมั่ว
         if not news:
             send_plain("🌙 Night Signal — ไม่มีข่าวสำคัญในรอบนี้")
             return
 
-        prompt = build_prompt(news)
-        summary = ask(prompt)
+        # 📰 headline + link
+        headline_block = format_headlines(news)
 
-        ai_score = extract_score(summary, "AI_SCORE")
-        energy_score = extract_score(summary, "ENERGY_SCORE")
+        # 🤖 summary
+        summary = ask(build_prompt(news))
+
+        ai_score = extract_score(summary, "AI")
+        energy_score = extract_score(summary, "Energy")
 
         score_line = ""
         if ai_score is not None and energy_score is not None:
-            score_line = f"\n\n📊 Score → AI: {ai_score}/10 | Energy: {energy_score}/10"
+            score_line = f"\n📊 Score → AI: {ai_score}/10 | Energy: {energy_score}/10"
 
         send_plain(
             f"🌙 Night Signal — {datetime.now().strftime('%d/%m %H:%M')}\n\n"
-            f"{summary.strip()}{score_line}"
+            f"📰 Headlines:\n{headline_block}\n\n"
+            f"{summary.strip()}\n"
+            f"{score_line}"
         )
 
     except Exception as e:
