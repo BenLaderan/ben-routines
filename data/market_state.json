@@ -1,6 +1,6 @@
 {
-  "regime": "unknown",
-  "fed_stance": "unknown",
-  "liquidity": "unknown",
-  "date": "never"
+  "regime": "risk_on",
+  "fed_stance": "neutral",
+  "liquidity": "expanding",
+  "date": "2026-05-05"
 }
