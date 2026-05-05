@@ -1,7 +1,9 @@
 name: Daily Routines
 
 on:
-  # Triggered externally by cron-job.org for precise timing (see scripts/setup_crons.py)
+  schedule:
+    # trend_update only — other jobs triggered by cron-job.org (see scripts/setup_crons.py)
+    - cron: "0 7 * * 3,0"  # trend_update — 14:00 TH Wed & Sun
   workflow_dispatch:
     inputs:
       job:
