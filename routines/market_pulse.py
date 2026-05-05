@@ -147,27 +147,27 @@ def analyze_regime(articles: list[dict], prev: dict) -> dict:
         for a in articles
     )
 
-    prompt = f"""You are a macro analyst. Analyze these news headlines from the last 20 hours.
+    prompt = f"""คุณคือนักวิเคราะห์ macro ให้วิเคราะห์หัวข้อข่าวในช่วง 20 ชั่วโมงที่ผ่านมา
 
-NEWS:
+ข่าว:
 {news_text}
 
-PREVIOUS STATE:
+สภาวะเมื่อวาน:
 regime={prev['regime']} | fed_stance={prev['fed_stance']} | liquidity={prev['liquidity']} | date={prev['date']}
 
-Return ONLY valid JSON (no markdown):
+ตอบเป็น JSON เท่านั้น (ห้ามใส่ markdown):
 {{
   "regime": "risk_on" | "risk_off" | "neutral",
   "fed_stance": "hawkish" | "dovish" | "neutral",
   "liquidity": "expanding" | "tightening" | "neutral",
   "regime_changed": true | false,
-  "change_reason": "1-sentence reason if changed, else null",
-  "macro_summary": "2-sentence English summary of today macro picture",
-  "key_drivers": ["driver1", "driver2", "driver3"]
+  "change_reason": "เหตุผล 1 ประโยคภาษาไทยถ้าเปลี่ยน ถ้าไม่เปลี่ยนให้ใส่ null",
+  "macro_summary": "สรุปภาพรวม macro วันนี้ 2 ประโยคภาษาไทย",
+  "key_drivers": ["ปัจจัยที่1", "ปัจจัยที่2", "ปัจจัยที่3"]
 }}
 
-Set regime_changed=true only if regime/fed_stance/liquidity meaningfully differs from previous.
-If previous date is 'never', set regime_changed=false."""
+ตั้ง regime_changed=true เฉพาะเมื่อ regime/fed_stance/liquidity เปลี่ยนอย่างมีนัยสำคัญจากเมื่อวาน
+ถ้า date เมื่อวานคือ 'never' ให้ตั้ง regime_changed=false"""
 
     raw = _ask(prompt, max_tokens=700)
     print(f"[regime raw] {raw[:400]}")
@@ -203,19 +203,19 @@ def map_portfolio_impact(regime: dict, prices: dict) -> str:
         pnl_str = (f"{'+' if p['pnl'] >= 0 else ''}{p['pnl']:.1f}%" if p.get("pnl") is not None else "N/A")
         rows.append(f"{ticker}({meta['theme']}): {price_str} chg={chg_str} P&L={pnl_str}")
 
-    prompt = f"""You are a portfolio analyst. Map today's macro regime to portfolio impact.
+    prompt = f"""คุณคือนักวิเคราะห์พอร์ตการลงทุน ให้ map สภาวะ macro วันนี้ไปยังผลกระทบต่อหุ้นแต่ละตัว
 
-REGIME TODAY:
-- Mode: {regime['regime']}
+สภาวะตลาดวันนี้:
+- โหมด: {regime['regime']}
 - Fed: {regime['fed_stance']}
-- Liquidity: {regime['liquidity']}
-- Summary: {regime['macro_summary']}
-- Drivers: {', '.join(regime.get('key_drivers', []))}
+- สภาพคล่อง: {regime['liquidity']}
+- ภาพรวม: {regime['macro_summary']}
+- ปัจจัยหลัก: {', '.join(regime.get('key_drivers', []))}
 
-PORTFOLIO:
+พอร์ตหุ้น (Ticker / theme / ราคาล่าสุด / เปลี่ยนแปลง / กำไร-ขาดทุนจากต้นทุน):
 {chr(10).join(rows)}
 
-Respond in Thai. Use this exact format:
+ตอบเป็นภาษาไทย ใช้รูปแบบนี้เท่านั้น:
 
 🟢 ได้ประโยชน์
 • TICKER (theme) — เหตุผล
@@ -223,10 +223,11 @@ Respond in Thai. Use this exact format:
 🔴 เสียประโยชน์
 • TICKER (theme) — เหตุผล
 
-⚪ Neutral
+⚪ เฉย ๆ
 • TICKER (theme) — เหตุผล
 
-สรุป: 1-2 ประโยค สิ่งที่ต้องระวังหรือโอกาสสำหรับพอร์ตนี้วันนี้"""
+สรุป: 1-2 ประโยค บอกสิ่งที่ต้องระวังหรือโอกาสที่น่าสนใจสำหรับพอร์ตนี้วันนี้
+(ศัพท์เทคนิคอย่าง risk-on, hawkish, liquidity ใช้ภาษาอังกฤษได้)"""
 
     return _ask(prompt, max_tokens=2000)
 
@@ -235,19 +236,17 @@ Respond in Thai. Use this exact format:
 def format_message(regime: dict, impact: str, now: datetime) -> str:
     date_str = now.strftime("%d/%m/%Y")
 
-    icons = {
-        "regime":    {"risk_on": "🟢", "risk_off": "🔴", "neutral": "🟡"}.get(regime["regime"], "⚪"),
-        "fed":       {"hawkish": "🦅", "dovish": "🕊️", "neutral": "⚖️"}.get(regime["fed_stance"], ""),
-        "liquidity": {"expanding": "💧↑", "tightening": "💧↓", "neutral": "💧"}.get(regime["liquidity"], ""),
-    }
+    regime_th = {"risk_on": "🟢 Risk-On (รับความเสี่ยง)", "risk_off": "🔴 Risk-Off (หลีกเลี่ยงความเสี่ยง)", "neutral": "🟡 Neutral (เฝ้าดู)"}.get(regime["regime"], "⚪ ไม่ชัดเจน")
+    fed_th    = {"hawkish": "🦅 Hawkish (คุมเข้ม)", "dovish": "🕊️ Dovish (ผ่อนคลาย)", "neutral": "⚖️ Neutral"}.get(regime["fed_stance"], regime["fed_stance"])
+    liq_th    = {"expanding": "💧↑ ขยายตัว", "tightening": "💧↓ ตึงตัว", "neutral": "💧 Neutral"}.get(regime["liquidity"], regime["liquidity"])
 
     lines = [
-        f"📊 MARKET PULSE — {date_str}",
+        f"📊 Market Pulse — {date_str}",
         "━━━━━━━━━━━━━━━━━━",
-        "🌡️ MACRO REGIME",
-        f"Mode:      {icons['regime']} {regime['regime'].upper().replace('_', '-')}",
-        f"Fed:       {icons['fed']} {regime['fed_stance'].upper()}",
-        f"Liquidity: {icons['liquidity']} {regime['liquidity'].upper()}",
+        "🌡️ ภาพรวม Macro วันนี้",
+        f"สภาวะตลาด:  {regime_th}",
+        f"ท่าที Fed:   {fed_th}",
+        f"สภาพคล่อง: {liq_th}",
         "",
         f"📝 {regime['macro_summary']}",
         "",
@@ -256,14 +255,14 @@ def format_message(regime: dict, impact: str, now: datetime) -> str:
     if regime.get("regime_changed"):
         lines += [
             "━━━━━━━━━━━━━━━━━━",
-            "🚨 REGIME CHANGE ALERT",
-            regime.get("change_reason") or "State changed from previous session.",
+            "🚨 สัญญาณ Regime เปลี่ยน!",
+            regime.get("change_reason") or "สภาวะตลาดเปลี่ยนจากเมื่อวาน",
             "",
         ]
 
     lines += [
         "━━━━━━━━━━━━━━━━━━",
-        "💼 PORTFOLIO IMPACT",
+        "💼 ผลกระทบต่อพอร์ต",
         "",
         impact.strip(),
     ]
