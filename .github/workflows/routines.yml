@@ -6,6 +6,7 @@ on:
     - cron: "0 0 * * *"   # daily_intro    — 07:00 TH
     - cron: "0 2 * * *"   # morning_news   — 09:00 TH
     - cron: "0 13 * * *"  # celeb_watch    — 20:00 TH
+    - cron: "0 13 * * *"  # market_pulse   — 20:00 TH
     - cron: "0 16 * * *"  # night_shift    — 23:00 TH
     - cron: "0 7 * * 3,0" # trend_update   — 14:00 TH Wed & Sun
   workflow_dispatch:
@@ -107,6 +108,37 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+  market_pulse:
+    name: Market Pulse (20:00 TH)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: |
+      github.event.schedule == '0 13 * * *' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == 'market_pulse'))
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-heavy-${{ hashFiles('requirements-base.txt', 'requirements-heavy.txt') }}
+      - run: pip install -r requirements-base.txt -r requirements-heavy.txt
+      - run: python routines/market_pulse.py
+        env:
+          PYTHONUNBUFFERED: "1"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      - name: Commit regime state
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add data/market_state.json
+          git diff --staged --quiet && echo "state unchanged" || (git commit -m "chore: update market state [skip ci]" && git push)
 
   trend_update:
     name: Trend Update (14:00 TH Wed & Sun)
