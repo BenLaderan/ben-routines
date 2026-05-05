@@ -1,14 +1,7 @@
 name: Daily Routines
 
 on:
-  schedule:
-    # All times UTC (Thailand = UTC+7, so subtract 7 hours)
-    - cron: "0 0 * * *"   # daily_intro    — 07:00 TH
-    - cron: "0 2 * * *"   # morning_news   — 09:00 TH
-    - cron: "0 13 * * *"  # celeb_watch    — 20:00 TH
-    - cron: "0 13 * * *"  # market_pulse   — 20:00 TH
-    - cron: "0 16 * * *"  # night_shift    — 23:00 TH
-    - cron: "0 7 * * 3,0" # trend_update   — 14:00 TH Wed & Sun
+  # Triggered externally by cron-job.org for precise timing (see scripts/setup_crons.py)
   workflow_dispatch:
     inputs:
       job:
