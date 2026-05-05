@@ -36,6 +36,25 @@ def send_plain(text: str) -> dict:
     return resp.json()
 
 
+def send_long(text: str, limit: int = 4000) -> None:
+    """Send a message, splitting at newlines when it exceeds Telegram's 4096-char limit."""
+    if len(text) <= limit:
+        send_plain(text)
+        return
+    remaining = text
+    while remaining:
+        if len(remaining) <= limit:
+            send_plain(remaining)
+            break
+        split_at = remaining.rfind("\n", 0, limit)
+        if split_at == -1:
+            split_at = limit
+        chunk = remaining[:split_at].rstrip()
+        if chunk:
+            send_plain(chunk)
+        remaining = remaining[split_at:].lstrip("\n")
+
+
 def send_error(source: str, error: Exception) -> None:
     """Send error notification — best-effort, never raises."""
     try:

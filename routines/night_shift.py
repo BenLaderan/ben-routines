@@ -8,13 +8,13 @@ from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
 
 import anthropic
-from shared.telegram import send_plain, send_error
+from shared.telegram import send_long, send_error
 
 def ask(prompt: str) -> str:
     client = anthropic.Anthropic()
     msg = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=2048,
+        max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
     return msg.content[0].text
@@ -145,12 +145,12 @@ def main():
         theme = dedupe(theme_raw)
 
         if not macro and not theme:
-            send_plain("🌙 Night Signal — ไม่มีข่าวสำคัญ")
+            send_long("🌙 Night Signal — ไม่มีข่าวสำคัญ")
             return
 
         summary = ask(build_prompt(macro, theme))
 
-        send_plain(
+        send_long(
             f"🌙 Night Signal — {datetime.now().strftime('%d/%m %H:%M')}\n\n"
             f"{summary.strip()}"
         )
