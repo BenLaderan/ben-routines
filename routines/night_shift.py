@@ -7,8 +7,17 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
 
-from shared.claude_client import ask
+import anthropic
 from shared.telegram import send_plain, send_error
+
+def ask(prompt: str) -> str:
+    client = anthropic.Anthropic()
+    msg = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2048,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return msg.content[0].text
 
 
 # ------------------ CONFIG ------------------
