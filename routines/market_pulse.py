@@ -13,7 +13,7 @@ try:
     from email.utils import parsedate_to_datetime
     from urllib.parse import quote_plus
     from pathlib import Path
-    from shared.telegram import send_plain, send_error
+    from shared.telegram import send_long, send_error
 except Exception as e:
     print(f"Import error: {e}")
     raise
@@ -302,7 +302,7 @@ def main():
         impact = map_portfolio_impact(regime, prices)
 
         message = format_message(regime, impact, now)
-        send_plain(message)
+        send_long(message)
         print("[market_pulse] sent")
 
     except Exception as e:

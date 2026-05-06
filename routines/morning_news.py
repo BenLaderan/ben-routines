@@ -8,7 +8,7 @@ from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
 
 from shared.claude_client import ask
-from shared.telegram import send_plain, send_error
+from shared.telegram import send_long, send_error
 
 
 # ✅ query ใหม่ (กว้าง + ไทย + อังกฤษ)
@@ -129,13 +129,13 @@ def main():
 
         # ✅ กัน empty
         if not news:
-            send_plain("🌅 Morning Brief — วันนี้ข่าวน้อย แต่ตลาดยังปกติ ไม่มี event ใหญ่")
+            send_long("🌅 Morning Brief — วันนี้ข่าวน้อย แต่ตลาดยังปกติ ไม่มี event ใหญ่")
             return
 
         prompt = build_prompt(news)
         summary = ask(prompt)
 
-        send_plain(
+        send_long(
             f"🌅 Morning Brief — {datetime.now().strftime('%d/%m %H:%M')}\n\n"
             f"{summary.strip()}"
         )

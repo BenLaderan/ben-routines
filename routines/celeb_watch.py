@@ -9,7 +9,7 @@ try:
     from datetime import datetime, timedelta, timezone
     from email.utils import parsedate_to_datetime
     from shared.claude_client import ask
-    from shared.telegram import send_plain, send_error
+    from shared.telegram import send_long, send_error
 except Exception as e:
     print(f"Import error: {e}")
     raise
@@ -160,13 +160,13 @@ def main():
         total = len(ling) + len(orm) + len(couple)
 
         if total == 0:
-            send_plain("⭐ Celeb Watch — วันนี้หลิงออมเงียบ ไม่มีประเด็นใหญ่")
+            send_long("⭐ Celeb Watch — วันนี้หลิงออมเงียบ ไม่มีประเด็นใหญ่")
             return
 
         prompt = build_prompt(ling, orm, couple)
         summary = ask(prompt)
 
-        send_plain(
+        send_long(
             f"⭐ Celeb Watch — {datetime.now().strftime('%d/%m/%Y')}\n\n"
             f"{summary.strip()}"
         )

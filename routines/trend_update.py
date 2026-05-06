@@ -8,7 +8,7 @@ from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
 
 from shared.claude_client import ask
-from shared.telegram import send_plain, send_error
+from shared.telegram import send_long, send_error
 
 
 # 🔥 แยก query เป็น “signal จริง”
@@ -157,13 +157,13 @@ def main():
         sorted_articles = sort_by_signal(filtered)
 
         if not sorted_articles:
-            send_plain("📈 Trend Update — วันนี้ยังไม่มี signal ชัด")
+            send_long("📈 Trend Update — วันนี้ยังไม่มี signal ชัด")
             return
 
         prompt = build_prompt(sorted_articles)
         summary = ask(prompt)
 
-        send_plain(
+        send_long(
             f"📈 Trend Intelligence — {datetime.now().strftime('%d/%m/%Y')}\n\n"
             f"{summary.strip()}"
         )
