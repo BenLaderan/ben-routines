@@ -48,7 +48,7 @@ RSS_QUERIES = [
     ("markets",  "S&P500 NASDAQ stock market risk sentiment earnings"),
 ]
 
-MODEL = "claude-haiku-4-5-20251001"
+MODEL = "claude-3-5-haiku-20241022"
 STATE_FILE = Path("data/market_state.json")
 DEFAULT_STATE = {
     "regime": "unknown",
