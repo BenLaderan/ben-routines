@@ -13,7 +13,7 @@ from shared.telegram import send_long, send_error
 def ask(prompt: str) -> str:
     client = anthropic.Anthropic()
     msg = client.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-3-5-sonnet-20240620",
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -156,7 +156,7 @@ def main():
         )
 
     except Exception as e:
-        send_error("night_news", e)
+        send_error("night_shift", e)
         raise
 
 
